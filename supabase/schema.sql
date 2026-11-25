@@ -64,6 +64,9 @@ create table if not exists public.checks (
   created_at timestamptz not null default now()
 );
 create index if not exists checks_business_idx on public.checks (business_id, created_at desc);
+-- 'audit' = one-time paid Deep Audit (added later; re-create the constraint so re-running this file upgrades old databases)
+alter table public.checks drop constraint if exists checks_source_check;
+alter table public.checks add constraint checks_source_check check (source in ('free','manual','weekly','audit'));
 
 -- ───────────────────────── prompt_results ─────────────────────────
 create table if not exists public.prompt_results (
@@ -93,6 +96,21 @@ create table if not exists public.leads (
   unique (email, check_id)
 );
 create index if not exists leads_email_idx on public.leads (email);
+
+-- ───────────────────────── audits (one-time paid Deep Audit) ─────────────────────────
+create table if not exists public.audits (
+  id uuid primary key default gen_random_uuid(),
+  check_id uuid not null references public.checks (id) on delete cascade,        -- free check it was bought from
+  email text not null check (char_length(email) <= 254),
+  amount_inr int not null check (amount_inr > 0),
+  status text not null default 'pending' check (status in ('pending','paid','running','done','failed')),
+  payment_link_id text unique,                                                  -- Razorpay plink_...
+  audit_check_id uuid references public.checks (id) on delete set null,          -- the deep check
+  paid_at timestamptz,
+  updated_at timestamptz not null default now(),
+  created_at timestamptz not null default now()
+);
+create index if not exists audits_status_idx on public.audits (status, updated_at);
 
 -- ───────────────────────── usage_log (per provider call, for cost auditing) ─────────────────────────
 create table if not exists public.usage_log (
@@ -169,6 +187,7 @@ alter table public.leads            enable row level security;   -- no policies:
 alter table public.usage_log        enable row level security;   -- no policies: service role only
 alter table public.rate_limits      enable row level security;   -- no policies: service role only
 alter table public.spend_counters   enable row level security;   -- no policies: service role only
+alter table public.audits           enable row level security;   -- no policies: service role only
 
 -- Logged-in users can read their own profile (plan changes only via server/webhook).
 drop policy if exists users_select_own on public.users;

@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import type { BusinessRow, CheckRow, PromptResultRow, Store, TrackedBusiness } from "./types";
+import type { AuditRow, BusinessRow, CheckRow, PromptResultRow, Store, TrackedBusiness } from "./types";
 
 /** Server-only client using the service-role key (bypasses RLS). Never import in client code. */
 export function serviceClient(): SupabaseClient {
@@ -90,6 +90,32 @@ export function createSupabaseStore(db: SupabaseClient = serviceClient()): Store
         const { users, business_prompts, ...b } = r;
         return { ...b, plan: users.plan, prompts: (business_prompts ?? []).map((p: any) => p.prompt) } as TrackedBusiness;
       });
+    },
+    async createAudit(a) {
+      return must(await db.from("audits").insert(a).select().single(), "createAudit") as AuditRow;
+    },
+    async getAudit(id) {
+      const { data } = await db.from("audits").select().eq("id", id).maybeSingle();
+      return (data as AuditRow) ?? null;
+    },
+    async updateAudit(id, patch) {
+      must(await db.from("audits").update({ ...patch, updated_at: new Date().toISOString() }).eq("id", id).select("id"), "updateAudit");
+    },
+    async transitionAudit(id, from, to) {
+      const now = new Date().toISOString();
+      const patch: Record<string, string> = { status: to, updated_at: now };
+      if (to === "paid") patch.paid_at = now;
+      // Conditional update: only one caller can win the transition (webhook retries, cron + webhook races).
+      const { data, error } = await db.from("audits").update(patch).eq("id", id).in("status", from).select("id");
+      if (error) throw new Error(`Supabase transitionAudit failed: ${error.message}`);
+      return (data ?? []).length === 1;
+    },
+    async listAuditsToRun() {
+      const stale = new Date(Date.now() - 15 * 60_000).toISOString();
+      const { data, error } = await db.from("audits").select()
+        .or(`status.eq.paid,and(status.eq.running,updated_at.lt."${stale}")`).limit(20);
+      if (error) throw new Error(error.message);
+      return (data ?? []) as AuditRow[];
     },
   };
 }

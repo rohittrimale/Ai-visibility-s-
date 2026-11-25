@@ -45,7 +45,7 @@ export default async function Dashboard() {
           <section key={b.id} className="card">
             <h2 className="font-bold">{b.name} <span className="font-normal text-slate-500">· {b.category}, {b.city}</span></h2>
             <div className="mt-3"><TrendChart points={pts} /></div>
-            {pts.length === 0 && <p className="mt-2 text-sm text-slate-500">The first weekly check will appear here after the next scheduled run.</p>}
+            {pts.length === 0 && <p className="mt-2 text-sm text-slate-500">Your first check is running. Refresh in a couple of minutes to see your score.</p>}
           </section>
         );
       })}

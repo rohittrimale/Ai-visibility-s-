@@ -1,11 +1,15 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { PLANS, isPlanId } from "@/lib/billing/plans";
 import { config } from "@/lib/config";
 import { generatePrompts } from "@/lib/prompts";
+import { enabledProviders } from "@/lib/providers";
+import { runCheck } from "@/lib/runner";
+import { getStore } from "@/lib/store";
 import { createUserClient, supabaseConfigured } from "@/lib/supabase/server";
 import { checkInputSchema } from "@/lib/validation";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 120; // first check runs in after()
 
 /** Paid: save a business (and its prompts) for weekly tracking. Runs as the user, so RLS applies. */
 export async function POST(req: Request) {
@@ -36,5 +40,14 @@ export async function POST(req: Request) {
 
   const prompts = generatePrompts({ category: input.category, city: input.city }, plan.maxPrompts);
   await supabase.from("business_prompts").insert(prompts.map((prompt) => ({ business_id: biz.id, prompt })));
+
+  // Run the first check now so a new subscriber sees a score today, not after the next weekly cron.
+  after(async () => {
+    const store = getStore();
+    const business = await store.getBusiness(biz.id);
+    if (!business) return;
+    const check = await store.createCheck({ business_id: business.id, source: "manual", ip_hash: null });
+    await runCheck({ store, checkId: check.id, business, prompts, providers: enabledProviders(), deadlineMs: 100_000 });
+  });
   return NextResponse.json({ id: biz.id, prompts: prompts.length });
 }

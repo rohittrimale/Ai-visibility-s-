@@ -42,11 +42,27 @@ Commands: `npm run dev` · `npm test` · `npm run typecheck` · `npm run build`.
 5. Supabase Auth → URL configuration: add `https://YOURDOMAIN/auth/callback` as a redirect URL.
 6. Razorpay: create two monthly plans (₹1,499 and ₹3,999), put their ids in `RAZORPAY_PLAN_STARTER/GROWTH`; add a webhook to `https://YOURDOMAIN/api/billing/webhook` for `subscription.activated|charged|cancelled|halted|completed` and put its secret in `RAZORPAY_WEBHOOK_SECRET`.
 
+## Deep Audit: one-time paid report (on by default)
+
+The fastest way this earns money. After unlocking the free report, visitors see an offer for a **₹999 Deep Audit** (`AUDIT_PRICE_INR`). No account or login needed.
+
+1. `POST /api/audit/checkout` creates an `audits` row and a Razorpay **Payment Link** (UPI, cards, netbanking) and redirects the buyer there.
+2. Razorpay calls `/api/billing/webhook` with `payment_link.paid`. The webhook checks the signature, the link id and the amount, moves the audit `pending → paid` exactly once, and starts the run in `after()`.
+3. `lib/audit.ts` runs 30 prompts × every engine, builds a 4-week action plan (`lib/actionPlan.ts`: the questions they're missing, the sites AI cites, the rivals that win), unlocks it and emails it.
+4. The buyer lands back on `/results/<free check>?audit=<id>`, which auto-refreshes until the audit is ready and links to it.
+5. `/api/cron/audits` (daily) re-runs any paid audit that never finished. A failed audit tells the buyer to reply to the receipt for a re-run or refund.
+
+Setup: add `RAZORPAY_KEY_ID`/`RAZORPAY_KEY_SECRET`, and in the Razorpay webhook settings also tick **`payment_link.paid`**. Without Razorpay keys in development, checkout is simulated (marked paid instantly) so you can try the flow with `AI_MOCK=1`; in production it is hidden until keys exist. `AUDIT_ENABLED=0` turns it off.
+
+Cost: ~90 answers + 90 parses per audit, roughly $0.30-0.60 with the default models, against ₹999 (~$11) revenue. Audit spend is logged in `usage_log` but does not count against the free-check cap.
+
+`/agencies` is a landing page pitching agencies on reselling audits and the Growth plan.
+
 ## Paid features (built, switched off)
 
 Set `NEXT_PUBLIC_PAID_ENABLED=1` to expose them: Supabase magic-link login (`/login`), `/dashboard` (saved businesses, trend chart), `/api/businesses`, weekly cron re-run, `/pricing` + Razorpay subscription and signature-verified webhook (the only code that changes a user's plan), and white-label print/PDF view at `/report/[id]/print?brand=Agency&color=%231d4ed8`.
 
-Known gaps: the first tracked check only runs on the next cron (no "run now" button); the cron processes businesses sequentially in one invocation (move to a queue at scale); 100-prompt plans currently get ~35 generated unique prompts until custom prompts are added; `maxBusinesses` per plan (1 / 5) is my assumption.
+Adding a business runs its first check immediately (in `after()`). Known gaps: the cron processes businesses sequentially in one invocation (move to a queue at scale); 100-prompt plans currently get ~36-40 generated unique prompts until custom prompts are added; `maxBusinesses` per plan (1 / 5) is my assumption.
 
 ## Cost and abuse controls
 
@@ -68,6 +84,7 @@ Known gaps: the first tracked check only runs on the next cron (no "run now" but
 - [ ] Mobile pass on iOS Safari and Android Chrome; slow-network behaviour of the ~45s wait.
 - [ ] Check `/sitemap.xml`, `/robots.txt`, niche page titles/H1s; submit sitemap to Search Console.
 - [ ] Privacy policy + consent wording for collecting emails (needed before running ads).
+- [ ] Deep Audit: Razorpay test mode → pay a link → webhook → audit runs and email arrives; replay the webhook → nothing runs twice; `/api/cron/audits` with right and wrong secret.
 - [ ] Paid (before enabling): Razorpay test-mode subscription → webhook → plan changes; cancel → plan reverts; cron with the right and wrong secret; RLS (user A can't see user B's businesses).
 - [ ] Rotate `HASH_SALT`/secrets only knowingly: changing the salt resets rate-limit history.
 

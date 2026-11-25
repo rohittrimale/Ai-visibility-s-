@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { CheckForm } from "./CheckForm";
+import { auditPriceInr } from "@/lib/billing/audit";
 import { NICHES, type Niche } from "@/lib/niches";
 
 const STEPS = [
@@ -54,6 +55,19 @@ export function Landing({ niche }: { niche?: Niche }) {
             </li>
           ))}
         </ol>
+      </section>
+
+      <section className="mx-auto max-w-5xl px-4 pb-6">
+        <div className="card flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-xl font-bold">Want the full picture? Get the Deep Audit</h2>
+            <p className="mt-1 text-sm text-slate-600">
+              30 customer questions on 3 AI engines, every competitor that beats you, the sites AI trusts, and a 4-week plan to fix it.
+              One-time ₹{auditPriceInr().toLocaleString("en-IN")}, offered after your free check.
+            </p>
+          </div>
+          <Link href="#check" className="btn shrink-0">Start with the free check</Link>
+        </div>
       </section>
 
       <section className="mx-auto max-w-5xl px-4">

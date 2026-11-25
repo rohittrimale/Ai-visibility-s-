@@ -6,6 +6,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();
   const pages = [
     { url: `${base}/`, priority: 1 },
+    { url: `${base}/agencies`, priority: 0.7 },
     ...NICHES.map((n) => ({ url: `${base}/${n.slug}`, priority: 0.8 })),
     ...(process.env.NEXT_PUBLIC_PAID_ENABLED === "1" ? [{ url: `${base}/pricing`, priority: 0.5 }] : []),
   ];

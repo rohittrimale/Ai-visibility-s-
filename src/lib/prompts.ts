@@ -34,6 +34,18 @@ export function generatePrompts({ category, city }: Ctx, count = 8): string[] {
     `${cat} in ${city} recommended by locals`,
     ...services.map((s) => `${s} in ${city} — which ${cat} is best?`),
     ...services.map((s) => `affordable ${s} in ${city}`),
+    `${cat} in ${city} with transparent pricing`,
+    `family friendly ${cat} in ${city}`,
+    `${cat} in ${city} that accepts walk-ins`,
+    `highly recommended ${syn} in ${city} for families`,
+    `best value ${cat} in ${city}`,
+    `${syn} in ${city} with experienced staff`,
+    `where should I go for a ${cat} in ${city}?`,
+    `${cat} in ${city} with online booking`,
+    `list the best ${syn}s in ${city} and why`,
+    `${cat} in ${city} with the most positive Google reviews`,
+    `luxury ${syn} in ${city}`,
+    `budget ${syn} in ${city} for students`,
   ];
 
   const seen = new Set<string>();
