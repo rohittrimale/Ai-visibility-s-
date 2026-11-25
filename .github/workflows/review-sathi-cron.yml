@@ -1,0 +1,20 @@
+# Optional: hourly review sync for Vercel Hobby plans, which only allow daily crons.
+# Add repository secrets REVIEW_SATHI_URL (e.g. https://app.reviewsathi.in) and REVIEW_SATHI_CRON_SECRET,
+# then remove the "if: false" line below.
+name: ReviewSathi hourly sync
+
+on:
+  schedule:
+    - cron: "5 * * * *"
+  workflow_dispatch:
+
+jobs:
+  sync:
+    if: false
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger review sync
+        run: |
+          curl --fail --silent --show-error --max-time 290 \
+            -H "Authorization: Bearer ${{ secrets.REVIEW_SATHI_CRON_SECRET }}" \
+            "${{ secrets.REVIEW_SATHI_URL }}/api/cron/sync"
