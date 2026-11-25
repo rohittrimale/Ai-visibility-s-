@@ -26,6 +26,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               Visibility Checker
             </Link>
             <nav className="flex items-center gap-4 text-sm font-medium text-slate-600">
+              <Link href="/agencies" className="hidden hover:text-slate-900 sm:inline">For agencies</Link>
               {paid && <Link href="/pricing" className="hover:text-slate-900">Pricing</Link>}
               {paid && <Link href="/login" className="hover:text-slate-900">Log in</Link>}
               <Link href="/#check" className="rounded-lg bg-brand-600 px-3 py-1.5 text-white hover:bg-brand-700">Free check</Link>
@@ -40,6 +41,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <Link href="/restaurants" className="hover:text-slate-800">Restaurants</Link>
               <Link href="/salons" className="hover:text-slate-800">Salons</Link>
               <Link href="/real-estate" className="hover:text-slate-800">Real estate</Link>
+              <Link href="/agencies" className="hover:text-slate-800">For agencies</Link>
             </div>
             <p>AI answers vary by user and location; this is an estimate.</p>
             <p>© {new Date().getFullYear()} AI Visibility Checker</p>

@@ -1,32 +1,46 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { AuditOffer } from "@/components/AuditOffer";
+import { AuditStatus } from "@/components/AuditStatus";
 import { Disclaimer } from "@/components/Disclaimer";
 import { EngineBars } from "@/components/EngineBars";
 import { PromptTable } from "@/components/PromptTable";
 import { ScoreRing } from "@/components/ScoreRing";
 import { UnlockForm } from "@/components/UnlockForm";
-import { loadReport, promptRows } from "@/lib/report";
+import { auditMode, auditPriceInr } from "@/lib/billing/audit";
+import { config } from "@/lib/config";
+import { isUuid, loadReport, promptRows } from "@/lib/report";
 import { getStore } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Your AI Visibility Score", robots: { index: false, follow: false } };
 
-export default async function ResultsPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const r = await loadReport(getStore(), id);
+export default async function ResultsPage({
+  params, searchParams,
+}: { params: Promise<{ id: string }>; searchParams: Promise<{ audit?: string }> }) {
+  const [{ id }, q] = await Promise.all([params, searchParams]);
+  const store = getStore();
+  const r = await loadReport(store, id);
   if (!r) notFound();
   const { check, business } = r;
   const rep = check.report!;
   const unlocked = check.unlocked;
+  const isAudit = check.source === "audit";
+  const audit = q.audit && isUuid(q.audit) ? await store.getAudit(q.audit) : null;
+  const auditForThis = audit && audit.check_id === check.id ? audit : null;
+  const offerAudit = !isAudit && !auditForThis && auditMode() !== "off";
   const engines = rep.engines.filter((e) => check.engine_scores?.[e]);
 
   return (
     <div className="mx-auto max-w-3xl space-y-5 px-4 py-8">
       <div>
+        {isAudit && <p className="mb-1 inline-block rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700">Deep Audit</p>}
         <p className="text-sm text-slate-500">{business.category} · {business.city}</p>
         <h1 className="text-2xl font-extrabold sm:text-3xl">{business.name}</h1>
       </div>
+
+      {auditForThis && <AuditStatus audit={auditForThis} />}
 
       <section className="card flex flex-col items-center gap-6 sm:flex-row">
         <ScoreRing score={check.score ?? 0} />
@@ -64,16 +78,43 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
             ) : <p className="text-sm text-slate-500">No clear competitors detected in the answers.</p>}
           </section>
 
-          <section className="card">
-            <h2 className="mb-3 text-lg font-bold">What to do next</h2>
-            <ol className="space-y-3">
-              {rep.tips.map((t, i) => (
-                <li key={i} className="flex gap-3 text-sm text-slate-700">
-                  <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-brand-50 text-xs font-bold text-brand-700">{i + 1}</span>{t}
-                </li>
-              ))}
-            </ol>
-          </section>
+          {rep.plan?.length ? (
+            <section className="card">
+              <h2 className="mb-1 text-lg font-bold">Your 4-week action plan</h2>
+              <p className="mb-4 text-sm text-slate-500">Do these in order. Re-check after week 4 to see your new score.</p>
+              <div className="space-y-5">
+                {rep.plan.map((w) => (
+                  <div key={w.week}>
+                    <h3 className="font-semibold"><span className="text-brand-700">Week {w.week}:</span> {w.title}</h3>
+                    <ul className="mt-2 space-y-2">
+                      {w.items.map((t, i) => <li key={i} className="flex gap-2 text-sm text-slate-700"><span className="text-brand-600">□</span>{t}</li>)}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            </section>
+          ) : (
+            <section className="card">
+              <h2 className="mb-3 text-lg font-bold">What to do next</h2>
+              <ol className="space-y-3">
+                {rep.tips.map((t, i) => (
+                  <li key={i} className="flex gap-3 text-sm text-slate-700">
+                    <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-brand-50 text-xs font-bold text-brand-700">{i + 1}</span>{t}
+                  </li>
+                ))}
+              </ol>
+            </section>
+          )}
+
+          {offerAudit && <AuditOffer checkId={check.id} priceInr={auditPriceInr()} businessName={business.name} />}
+
+          {isAudit && config.paidEnabled && (
+            <section className="card">
+              <h2 className="text-lg font-bold">Keep your ranking</h2>
+              <p className="mt-1 text-sm text-slate-600">AI answers change every week. Track your score automatically and see whether your fixes are working.</p>
+              <Link href="/pricing" className="btn mt-3">See tracking plans</Link>
+            </section>
+          )}
 
           <div className="flex flex-wrap gap-3">
             <Link href={`/report/${check.id}/print`} className="btn-ghost">Printable / PDF version</Link>

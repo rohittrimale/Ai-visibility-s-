@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { BusinessRow, CheckRow, LeadRow, PromptResultRow, Store, UsageRow } from "./types";
+import type { AuditRow, BusinessRow, CheckRow, LeadRow, PromptResultRow, Store, UsageRow } from "./types";
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -12,6 +12,7 @@ export function createMemoryStore(): Store & { _dump(): Record<string, unknown> 
   const spend = new Map<string, number>();
   const usage: UsageRow[] = [];
   const leads = new Map<string, LeadRow>();
+  const audits = new Map<string, AuditRow>();
 
   return {
     kind: "memory",
@@ -82,6 +83,30 @@ export function createMemoryStore(): Store & { _dump(): Record<string, unknown> 
     async listTrackedBusinesses() {
       return [];
     },
-    _dump: () => ({ businesses: [...businesses.values()], checks: [...checks.values()], results, usage, leads: [...leads.values()], spend: [...spend] }),
+    async createAudit(a) {
+      const now = new Date().toISOString();
+      const row: AuditRow = { ...a, id: randomUUID(), status: "pending", payment_link_id: null, audit_check_id: null, paid_at: null, updated_at: now, created_at: now };
+      audits.set(row.id, row);
+      return row;
+    },
+    async getAudit(id) {
+      return audits.get(id) ?? null;
+    },
+    async updateAudit(id, patch) {
+      const cur = audits.get(id);
+      if (cur) audits.set(id, { ...cur, ...patch, updated_at: new Date().toISOString() });
+    },
+    async transitionAudit(id, from, to) {
+      const cur = audits.get(id);
+      if (!cur || !from.includes(cur.status)) return false;
+      const now = new Date().toISOString();
+      audits.set(id, { ...cur, status: to, updated_at: now, paid_at: to === "paid" ? now : cur.paid_at });
+      return true;
+    },
+    async listAuditsToRun() {
+      const stale = new Date(Date.now() - 15 * 60_000).toISOString();
+      return [...audits.values()].filter((a) => a.status === "paid" || (a.status === "running" && a.updated_at < stale));
+    },
+    _dump: () => ({ businesses: [...businesses.values()], checks: [...checks.values()], results, usage, leads: [...leads.values()], audits: [...audits.values()], spend: [...spend] }),
   };
 }

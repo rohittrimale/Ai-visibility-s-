@@ -1,9 +1,14 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
+import { runAudit } from "@/lib/audit";
+import { paidAuditFromEvent } from "@/lib/billing/audit";
 import { planForRazorpayPlanId } from "@/lib/billing/plans";
 import { verifyWebhookSignature } from "@/lib/billing/razorpay";
+import { enabledProviders } from "@/lib/providers";
+import { getStore } from "@/lib/store";
 import { serviceClient } from "@/lib/store/supabase";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 300; // a paid Deep Audit runs in after()
 
 type Event = {
   event: string;
@@ -17,6 +22,22 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Bad signature" }, { status: 400 });
 
   const evt = JSON.parse(raw) as Event;
+
+  // One-time Deep Audit paid via a Payment Link. Works without logins or paid plans being enabled.
+  const paid = paidAuditFromEvent(evt as Parameters<typeof paidAuditFromEvent>[0]);
+  if (paid) {
+    const store = getStore();
+    const audit = await store.getAudit(paid.auditId);
+    if (!audit || audit.payment_link_id !== paid.paymentLinkId || paid.amountPaidInr < audit.amount_inr)
+      return NextResponse.json({ ok: true, ignored: true });
+    // Only the first delivery wins; Razorpay retries are no-ops.
+    if (await store.transitionAudit(audit.id, ["pending"], "paid")) {
+      const fresh = (await store.getAudit(audit.id))!;
+      after(() => runAudit(store, fresh, enabledProviders()).then(() => undefined));
+    }
+    return NextResponse.json({ ok: true });
+  }
+
   const sub = evt.payload?.subscription?.entity;
   const userId = sub?.notes?.user_id;
   if (!sub || !userId) return NextResponse.json({ ok: true, ignored: true });

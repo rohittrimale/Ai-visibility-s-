@@ -18,13 +18,17 @@ export type Report = {
   topCompetitors: { name: string; count: number }[];
   tips: string[];
   engines: string[];
+  /** Deep Audit only: week-by-week action plan. */
+  plan?: PlanWeek[];
 };
+
+export type PlanWeek = { week: number; title: string; items: string[] };
 
 export type CheckRow = {
   id: string;
   business_id: string;
   status: "running" | "done" | "failed";
-  source: "free" | "manual" | "weekly";
+  source: "free" | "manual" | "weekly" | "audit";
   score: number | null;
   engine_scores: Record<string, { score: number; mentioned: number; total: number }> | null;
   report: Report | null;
@@ -57,6 +61,20 @@ export type UsageRow = {
 
 export type LeadRow = { email: string; business_id: string; check_id: string };
 
+/** One-time paid Deep Audit, bought from a free check's results page. */
+export type AuditRow = {
+  id: string;
+  check_id: string; // the free check it was bought from
+  email: string;
+  amount_inr: number;
+  status: "pending" | "paid" | "running" | "done" | "failed";
+  payment_link_id: string | null;
+  audit_check_id: string | null; // the deep check, once run
+  paid_at: string | null;
+  updated_at: string;
+  created_at: string;
+};
+
 export type TrackedBusiness = BusinessRow & { plan: "free" | "starter" | "growth"; prompts: string[] };
 
 /**
@@ -85,4 +103,13 @@ export interface Store {
   latestCheckDate(businessId: string): Promise<string | null>;
   /** Paid: businesses with weekly tracking on a paid plan. */
   listTrackedBusinesses(): Promise<TrackedBusiness[]>;
+
+  // ---- one-time Deep Audit ----
+  createAudit(a: { check_id: string; email: string; amount_inr: number }): Promise<AuditRow>;
+  getAudit(id: string): Promise<AuditRow | null>;
+  updateAudit(id: string, patch: Partial<Pick<AuditRow, "payment_link_id" | "audit_check_id" | "status">>): Promise<void>;
+  /** Atomically move an audit from one of `from` to `to`. Returns false if it was in another state (idempotency guard). */
+  transitionAudit(id: string, from: AuditRow["status"][], to: AuditRow["status"]): Promise<boolean>;
+  /** Paid audits that never finished: status 'paid', or 'running' with no progress for 15+ minutes. */
+  listAuditsToRun(): Promise<AuditRow[]>;
 }
