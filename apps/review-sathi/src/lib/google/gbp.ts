@@ -1,4 +1,4 @@
-import { formatAddress, normalizeReview, type GbpLocation, type GbpReview } from "./types";
+import { formatAddress, normalizeReview, reviewUrlFor, type GbpLocation, type GbpReview } from "./types";
 
 /**
  * Everything the app needs from Google Business Profile. Two implementations:
@@ -67,10 +67,15 @@ export class HttpGbpClient implements GbpClient {
       for (const account of accounts.accounts ?? []) {
         let locPage: string | undefined;
         do {
-          const lqs = new URLSearchParams({ readMask: "name,title,storefrontAddress", pageSize: "100" });
+          const lqs = new URLSearchParams({ readMask: "name,title,storefrontAddress,metadata", pageSize: "100" });
           if (locPage) lqs.set("pageToken", locPage);
           const data = await this.request<{
-            locations?: { name: string; title?: string; storefrontAddress?: Parameters<typeof formatAddress>[0] }[];
+            locations?: {
+              name: string;
+              title?: string;
+              storefrontAddress?: Parameters<typeof formatAddress>[0];
+              metadata?: { placeId?: string; newReviewUri?: string };
+            }[];
             nextPageToken?: string;
           }>(`${INFO_API}/${path(account.name)}/locations?${lqs}`);
           for (const loc of data.locations ?? []) {
@@ -79,6 +84,8 @@ export class HttpGbpClient implements GbpClient {
               accountName: account.name,
               title: loc.title ?? "Untitled location",
               address: formatAddress(loc.storefrontAddress),
+              placeId: loc.metadata?.placeId ?? null,
+              reviewUrl: reviewUrlFor(loc.metadata),
             });
           }
           locPage = data.nextPageToken;
@@ -133,7 +140,15 @@ export class HttpGbpClient implements GbpClient {
 export const DEMO_ACCOUNT = "accounts/demo";
 
 const DEMO_LOCATIONS: GbpLocation[] = [
-  { name: "locations/demo-1", accountName: DEMO_ACCOUNT, title: "Sharma Sweets & Snacks", address: "FC Road, Pune, Maharashtra 411004" },
+  {
+    name: "locations/demo-1",
+    accountName: DEMO_ACCOUNT,
+    title: "Sharma Sweets & Snacks",
+    address: "FC Road, Pune, Maharashtra 411004",
+    // Demo listings have no real Google place, so owners paste their own review link.
+    placeId: null,
+    reviewUrl: null,
+  },
 ];
 
 const DEMO_REVIEWS: Omit<GbpReview, "name" | "createTime" | "updateTime">[] = [

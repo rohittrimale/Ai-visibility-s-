@@ -23,6 +23,7 @@ export const PLANS: Record<PlanId, Plan> = {
       "AI replies in English, Hindi, Hinglish and Marathi",
       "Auto-reply to 4 and 5 star reviews",
       "Email alert within the hour for bad reviews",
+      "Review QR poster and WhatsApp review requests",
       "Weekly AI post drafts",
     ],
   },

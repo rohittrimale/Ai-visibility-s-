@@ -18,7 +18,7 @@ describe("HttpGbpClient", () => {
       return { status: 404 };
     });
     const client = new HttpGbpClient(async () => "token", fetchImpl);
-    expect(await client.listLocations()).toEqual([{ name: "locations/9", accountName: "accounts/1", title: "Shop", address: "MG Road, Pune" }]);
+    expect(await client.listLocations()).toEqual([{ name: "locations/9", accountName: "accounts/1", title: "Shop", address: "MG Road, Pune", placeId: null, reviewUrl: null }]);
   });
 
   it("pages through reviews and sends the bearer token", async () => {

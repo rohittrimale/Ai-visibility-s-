@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PROTECTED_PREFIXES = ["/dashboard", "/onboarding"];
+const PROTECTED_PREFIXES = ["/dashboard", "/onboarding", "/poster"];
 
 /** Refreshes the Supabase session cookie and keeps signed-out users out of the app. */
 export async function proxy(request: NextRequest) {
@@ -41,5 +41,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/onboarding/:path*", "/login", "/auth/:path*"],
+  matcher: ["/dashboard/:path*", "/onboarding/:path*", "/poster/:path*", "/login", "/auth/:path*"],
 };

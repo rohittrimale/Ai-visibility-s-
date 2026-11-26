@@ -5,6 +5,7 @@ AI replies to Google reviews for Indian local businesses: restaurants, sweet sho
 - **Connect Google Business Profile** with Google sign-in (OAuth). Tokens are encrypted at rest.
 - **AI reply drafts** for every new review, in the customer's language: English, Hindi, Hinglish or Marathi. Owners approve, edit, or let 4 and 5 star replies post automatically. Low ratings always wait for a person.
 - **Bad-review alerts** by email within the hour, with a calm reply already drafted.
+- **Get more reviews**: a trackable short review link per location, a QR code and printable counter poster, and a ready WhatsApp review request in English, Hindi, Hinglish or Marathi. Messages follow Google's rules: they go to every customer and offer nothing in return.
 - **Weekly Google post drafts** every Monday, emailed to the owner, published in one tap.
 - **Multi-tenant dashboard** with row level security, so each business only ever sees its own data.
 - **Razorpay subscriptions** (UPI AutoPay, cards) with a 14-day free trial, no card needed to start.
@@ -22,7 +23,7 @@ This app lives in `apps/review-sathi` and is independent of the AI Visibility Ch
 | Payments | Razorpay Subscriptions |
 | Email | Resend |
 | Jobs | Vercel Cron (hourly sync, Monday posts, daily trial reminders) |
-| Tests | Vitest (62 tests), GitHub Actions CI |
+| Tests | Vitest (74 tests), GitHub Actions CI |
 
 ## How it works
 
@@ -45,6 +46,7 @@ Key files:
 - `src/lib/sync/sync-location.ts`: the review sync rules (idempotent, backlog-aware, never auto-posts low ratings).
 - `src/lib/ai/prompts.ts`: reply and post prompts, with review text fenced off from instructions.
 - `src/lib/google/gbp.ts`: Google Business Profile client, plus the demo client.
+- `src/lib/reviews/requests.ts`: review request messages, WhatsApp links and phone number handling.
 - `src/lib/billing/plans.ts`: plans, prices and the access rules (trial, grace period, cancellation).
 
 ## Run locally
@@ -102,7 +104,7 @@ Do these in order. Step 1 is the slow one, so start it first.
 ### 2. Supabase
 
 1. Create a project at [supabase.com](https://supabase.com), region **Mumbai (ap-south-1)**.
-2. Run the migration: `npx supabase link --project-ref YOUR_REF && npx supabase db push`, or paste `supabase/migrations/0001_init.sql` into the SQL editor.
+2. Run the migrations: `npx supabase link --project-ref YOUR_REF && npx supabase db push`, or paste the files in `supabase/migrations/` into the SQL editor in order.
 3. **Authentication → URL configuration**: Site URL `https://YOUR_DOMAIN`, redirect URL `https://YOUR_DOMAIN/auth/callback`.
 4. **Authentication → SMTP**: use Resend's SMTP so magic-link emails come from your domain (Supabase's built-in mailer is rate-limited).
 5. Optional: enable the Google provider in Auth and set `NEXT_PUBLIC_ENABLE_GOOGLE_LOGIN=true`.

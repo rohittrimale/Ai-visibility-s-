@@ -14,7 +14,13 @@ export async function importLocations(orgId: string, gbp: GbpClient): Promise<nu
     if (known.has(location.name)) {
       await db
         .from("locations")
-        .update({ title: location.title, address: location.address, google_account_name: location.accountName })
+        .update({
+          title: location.title,
+          address: location.address,
+          google_account_name: location.accountName,
+          place_id: location.placeId,
+          google_review_url: location.reviewUrl,
+        })
         .eq("org_id", orgId)
         .eq("google_location_name", location.name);
     } else {
@@ -24,6 +30,8 @@ export async function importLocations(orgId: string, gbp: GbpClient): Promise<nu
         google_account_name: location.accountName,
         title: location.title,
         address: location.address,
+        place_id: location.placeId,
+        google_review_url: location.reviewUrl,
         // Turn on the first location automatically; owners pick others in Settings.
         enabled: known.size === 0,
       });

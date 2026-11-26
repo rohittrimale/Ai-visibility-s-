@@ -23,6 +23,9 @@ export type GbpLocation = {
   accountName: string; // accounts/{a}
   title: string;
   address: string | null;
+  placeId: string | null;
+  /** Link that opens Google's "write a review" box for this place. */
+  reviewUrl: string | null;
 };
 
 export type GbpAccount = { name: string; accountName: string | null };
@@ -81,4 +84,11 @@ export function formatAddress(address: RawAddress | undefined): string | null {
     (p): p is string => Boolean(p && p.trim()),
   );
   return parts.length ? parts.join(", ") : null;
+}
+
+/** Google's "write a review" link: metadata.newReviewUri if present, else built from the place ID. */
+export function reviewUrlFor(metadata: { placeId?: string; newReviewUri?: string } | undefined): string | null {
+  if (metadata?.newReviewUri?.startsWith("https://")) return metadata.newReviewUri;
+  if (metadata?.placeId) return `https://search.google.com/local/writereview?placeid=${encodeURIComponent(metadata.placeId)}`;
+  return null;
 }

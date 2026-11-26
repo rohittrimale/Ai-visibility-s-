@@ -59,3 +59,14 @@ describe("formatAddress", () => {
     expect(formatAddress(undefined)).toBeNull();
   });
 });
+
+import { reviewUrlFor } from "@/lib/google/types";
+
+describe("reviewUrlFor", () => {
+  it("prefers Google's own review link, then builds one from the place ID", () => {
+    expect(reviewUrlFor({ newReviewUri: "https://g.page/r/abc/review", placeId: "ChIJ1" })).toBe("https://g.page/r/abc/review");
+    expect(reviewUrlFor({ placeId: "ChIJ1" })).toBe("https://search.google.com/local/writereview?placeid=ChIJ1");
+    expect(reviewUrlFor({})).toBeNull();
+    expect(reviewUrlFor(undefined)).toBeNull();
+  });
+});
