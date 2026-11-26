@@ -24,9 +24,11 @@ as $$
 declare
   target text;
 begin
+  -- Only count clicks that actually reach Google.
   update public.locations
      set review_link_clicks = review_link_clicks + 1
    where short_code = code
+     and coalesce(custom_review_url, google_review_url) is not null
   returning coalesce(custom_review_url, google_review_url) into target;
   return target;
 end;

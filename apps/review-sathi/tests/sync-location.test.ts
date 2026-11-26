@@ -188,3 +188,22 @@ describe("syncLocation", () => {
     expect(store.byName(`n${MAX_DRAFTS_PER_RUN + 4}`).status).toBe("new");
   });
 });
+
+describe("syncLocation timing", () => {
+  it("alerts and auto-posts a review that Google shows a day late", async () => {
+    const gbp = new FakeGbp([review("late-bad", 1, 30), review("late-good", 5, 30)]);
+    const store = new MemoryStore();
+    const result = await syncLocation({ org, location: location({ last_synced_at: hoursAgo(0.5) }), gbp, drafter: drafter(), store, now: NOW });
+    expect(result.alerts.map((a) => a.reviewerName)).toEqual(["R-late-bad"]);
+    expect(result.autoPosted).toBe(1);
+  });
+
+  it("does not alert or auto-post reviews older than a week", async () => {
+    const gbp = new FakeGbp([review("old-bad", 1, 24 * 8), review("old-good", 5, 24 * 8)]);
+    const store = new MemoryStore();
+    const result = await syncLocation({ org, location: location(), gbp, drafter: drafter(), store, now: NOW });
+    expect(result.alerts).toHaveLength(0);
+    expect(result.autoPosted).toBe(0);
+    expect(store.byName("old-good").status).toBe("drafted");
+  });
+});

@@ -77,8 +77,13 @@ export type SyncResult = {
 export const MAX_DRAFTS_PER_RUN = 25;
 /** On the first sync, only draft replies for reviews newer than this. Older ones stay visible but undrafted. */
 export const BACKLOG_DAYS = 90;
-/** Reviews older than this never trigger an alert email. */
-const ALERT_WINDOW_MS = 2 * 86_400_000;
+/**
+ * After the first sync, any review we haven't seen before is new to the owner, even if
+ * Google shows it a little late, so it can alert and auto-post if it is under a week old.
+ * On the first sync, only the last two days alert, and nothing auto-posts.
+ */
+const RECENT_MS = 7 * 86_400_000;
+const FIRST_SYNC_ALERT_MS = 2 * 86_400_000;
 
 function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message.slice(0, 500) : "Unknown error";
@@ -110,10 +115,8 @@ export async function syncLocation(opts: {
 
   let draftBudget = MAX_DRAFTS_PER_RUN;
   const backlogCutoff = now.getTime() - BACKLOG_DAYS * 86_400_000;
-  const alertCutoff = Math.max(
-    now.getTime() - ALERT_WINDOW_MS,
-    location.last_synced_at ? Date.parse(location.last_synced_at) - 3_600_000 : 0,
-  );
+  const firstSync = !location.last_synced_at;
+  const alertCutoff = now.getTime() - (firstSync ? FIRST_SYNC_ALERT_MS : RECENT_MS);
 
   const draftFor = (review: Pick<GbpReview, "reviewerName" | "starRating" | "comment">) =>
     drafter.reply({
@@ -195,7 +198,7 @@ export async function syncLocation(opts: {
       negativeThreshold: org.negative_threshold,
     });
     const createdAt = Date.parse(review.createTime);
-    const isBacklog = !location.last_synced_at && createdAt < backlogCutoff;
+    const isBacklog = firstSync && createdAt < backlogCutoff;
 
     const row: NewReviewRow = {
       org_id: org.id,
@@ -226,8 +229,8 @@ export async function syncLocation(opts: {
       }
     }
 
-    // Auto-post only fresh reviews, never the first-sync backlog: the owner should see the tone first.
-    const fresh = Boolean(location.last_synced_at) && createdAt >= Date.parse(location.last_synced_at!) - 86_400_000;
+    // Auto-post only recent reviews, never the first-sync backlog: the owner should see the tone first.
+    const fresh = !firstSync && createdAt >= now.getTime() - RECENT_MS;
     if (decision.autoPost && fresh && row.draft_reply) {
       try {
         await gbp.replyToReview(review.name, row.draft_reply);

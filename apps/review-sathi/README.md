@@ -23,7 +23,7 @@ This app lives in `apps/review-sathi` and is independent of the AI Visibility Ch
 | Payments | Razorpay Subscriptions |
 | Email | Resend |
 | Jobs | Vercel Cron (hourly sync, Monday posts, daily trial reminders) |
-| Tests | Vitest (74 tests), GitHub Actions CI |
+| Tests | Vitest (76 tests), GitHub Actions CI |
 
 ## How it works
 
