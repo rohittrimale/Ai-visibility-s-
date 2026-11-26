@@ -1,0 +1,27 @@
+name: ReviewSathi CI
+
+on:
+  push:
+    paths: ["apps/review-sathi/**", ".github/workflows/review-sathi.yml"]
+  pull_request:
+    paths: ["apps/review-sathi/**", ".github/workflows/review-sathi.yml"]
+
+defaults:
+  run:
+    working-directory: apps/review-sathi
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/review-sathi/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
